@@ -1,24 +1,19 @@
 #ifndef _VOTE_WIDGET_H_
 #define _VOTE_WIDGET_H_
 
-#include <memory>
-#include <array>
-#include <gtkmm/box.h>
-#include <gtkmm/button.h>
+#include <gtkmm.h>
+#include <cstddef>
 
 class VoteWidget : public Gtk::HBox {
 public:
     VoteWidget();
     virtual ~VoteWidget();
-
-    std::size_t get_vote() const { return rating; }
+    std::size_t get_vote() const { return adj->get_value(); }
 
 protected:
-    std::array<Gtk::Button, 6> star;
-    std::size_t rating;
-
-    void unload_star();
-    void load_star(std::size_t);
+    void on_adjustment_value_changed();
+    Glib::RefPtr<Gtk::Adjustment> adj;
+    Gtk::HScale scale_digits;
 };
 
 #endif

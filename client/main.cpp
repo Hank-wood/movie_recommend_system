@@ -24,10 +24,10 @@ int main(int argc, char* argv[]) {
     if (auto window = Custom::Get<Gtk::Window>(refBuilder, "window")) {
         Custom::Control ins(Custom::Get<Gtk::Box>(refBuilder, "box_left"),
                             Custom::Get<Gtk::Box>(refBuilder, "box_right"));
-        auto con = Custom::Get<Gtk::Button>(refBuilder, "connect_server");
-        auto prev = Custom::Get<Gtk::Button>(refBuilder, "prev_page");
-        auto next = Custom::Get<Gtk::Button>(refBuilder, "next_page");
-        auto sub = Custom::Get<Gtk::Button>(refBuilder, "submit");
+        auto con = Custom::Get<Gtk::Button>(refBuilder, "connect_server"),
+             prev = Custom::Get<Gtk::Button>(refBuilder, "prev_page"),
+             next = Custom::Get<Gtk::Button>(refBuilder, "next_page"),
+             sub = Custom::Get<Gtk::Button>(refBuilder, "submit");
         if (!con || !prev || !next || !sub)
             return 1;
         con->signal_clicked().connect(sigc::mem_fun(ins, &Custom::Control::connect));
