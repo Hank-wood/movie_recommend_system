@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <tuple>
 #include <random>
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 
@@ -29,7 +30,8 @@ namespace ML {
     // The first of pair is theta, and the second is x.
     // theta is a USER * FEATURE matrix, x is a MOIVE * FEATURE matrix.
     pair<ublas::matrix<double>, ublas::matrix<double>>
-    train(const ublas::matrix<double>&, double, int);
+    train(const ublas::matrix<double>&, const ublas::matrix<bool>&, double,
+          int);
 
     // The first matrix is theta, and the second is x.
     // Same as above.

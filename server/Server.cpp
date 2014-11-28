@@ -122,7 +122,7 @@ void Server::recv_movie_vote() {
     for (auto &i : vec)
         taste[i.first - 1] = i.second;
 
-    std::vector<std::vector<int>> mtrx(users_cnt, std::vector<int>(movies_cnt));
+    std::vector<std::vector<int>> mtrx(users_cnt, std::vector<int>(movies_cnt, 0));
     res.reset(stmt->executeQuery("select * from votes"));
     while (res->next()) {
         int uid = res->getInt("user_id"), mid = res->getInt("movie_id"),
@@ -132,7 +132,7 @@ void Server::recv_movie_vote() {
     mtrx.push_back(taste);
 
     // Start to recommend
-    const int32_t TOP = 10;
+    const int32_t TOP = 30;
     std::vector<Movie> recommends = ML::predicate(mtrx, TOP);
 
     // Load movie list
@@ -144,7 +144,7 @@ void Server::recv_movie_vote() {
         movie_list[id - 1] = name;
     }
     for (auto& i : recommends)
-        std::strncpy(i.name, movie_list[i.id - 1].c_str(), sizeof(i.name));
+        std::strncpy(i.name, movie_list[i.id].c_str(), sizeof(i.name));
 
     Network::send(connfd, static_cast<int32_t>(recommends.size()));
     for (auto &i : recommends)

@@ -5,20 +5,33 @@ namespace ML {
 
     vector<Movie> predicate(const vector<vector<int>>& mtrx, int TOP) {
         vector<Movie> ret;
+
         ublas::matrix<double> y(mtrx.size(), mtrx[0].size());
+        ublas::matrix<bool> present(y.size1(), y.size2());
+        for (std::size_t i = 0; i < y.size1(); ++i) {
+            for (std::size_t j = 0; j < y.size2(); ++j) {
+                y(i, j) = mtrx[i][j];
+                present(i, j) = (mtrx[i][j] != 0);
+            }
+        }
         
-        auto pr = train(y, 0.0075, 15);
+        auto pr = train(y, present, 0.000004, 100);
         auto theta = pr.first, x = pr.second;
         ublas::matrix<double> recommends = ublas::prod(theta, ublas::trans(x));
+
         vector<pair<int, double>> order;
         for (std::size_t i = 0; i < recommends.size2(); ++i)
             order.emplace_back(i, recommends(recommends.size1() - 1, i));
+        unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+        std::shuffle(order.begin(), order.end(),
+                     std::default_random_engine(seed));
         std::sort(order.begin(), order.end(),
                   [](const auto& lhs,
                      const auto& rhs) { return lhs.second < rhs.second; });
 
         while (TOP-- > 0 && order.size() > 0) {
             Movie m = { order.back().first };
+            m.vote = order.back().second + 0.5;
             order.pop_back();
             ret.push_back(std::move(m));
         }
@@ -26,11 +39,12 @@ namespace ML {
     }
 
     pair<ublas::matrix<double>, ublas::matrix<double>>
-    train(const ublas::matrix<double>& mtrx, double alpha, int iters) {
+    train(const ublas::matrix<double>& mtrx, const ublas::matrix<bool>& present, double alpha, int iters) {
         const std::size_t USERS = mtrx.size1(), MOVIES = mtrx.size2();
 
         ublas::matrix<double> theta(USERS, FEATURE), x(MOVIES, FEATURE);
-        std::default_random_engine generator;
+        unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+        std::default_random_engine generator(seed);
         std::uniform_real_distribution<double> distribution(0, 1);
         auto rnd = std::bind(distribution, generator);
         for (std::size_t i = 0; i < theta.size1(); ++i) {
@@ -42,11 +56,6 @@ namespace ML {
                 x(i, j) = rnd();
         }
 
-        ublas::matrix<bool> present(USERS, MOVIES);
-        for (std::size_t i = 0; i < USERS; ++i) {
-            for (std::size_t j = 0; j < MOVIES; ++j)
-                present(i, j) = (mtrx(i, j) != 0);
-        }
 #ifndef NDEBUG
         std::cout << "Start to train model.\n";
 #endif
@@ -55,16 +64,8 @@ namespace ML {
             double cost = std::get<0>(res);
             ublas::matrix<double> &theta_grad = std::get<1>(res),
                                   &x_grad = std::get<2>(res);
-#ifndef NDEBUG
-            //std::cout << theta_grad << std::endl;
-            //std::cout << x_grad << std::endl;
-#endif
             theta -= alpha * theta_grad;
             x -= alpha * x_grad;
-#ifndef NDEBUG
-            std::cout << theta << std::endl;
-            std::cout << x << std::endl;
-#endif
 #ifndef NDEBUG
             std::cout << "remain " << iters
                       << " times, the cost value = " << cost << "\n";
@@ -79,19 +80,26 @@ namespace ML {
               const ublas::matrix<double>& mtrx, double lambda) {
         const std::size_t USERS = theta.size1(), MOVIES = x.size1();
 
-        auto dot_pow2 = [](const auto& x) { return ublas::element_prod(x, x); };
-        auto sum = [](const auto& x) {
-            return ublas::sum(std::move(
-                ublas::prod(ublas::scalar_vector<double>(x.size1()), x)));
-        };
-
-        double ret =
-            sum(std::move(ublas::prod(
-                std::move(dot_pow2(std::move(
-                    std::move(ublas::prod(theta, ublas::trans(x))) - mtrx))),
-                std::move(ublas::trans(present))))) / 2.0 +
-            lambda / 2.0 *
-                (sum(std::move(dot_pow2(theta))) + sum(std::move(dot_pow2(x))));
+        double ret = 0.0;
+        for (std::size_t i = 0; i < theta.size1(); ++i) {
+            for (std::size_t j = 0; j < theta.size2(); ++j)
+                ret += theta(i, j) * theta(i, j);
+        }
+        for (std::size_t i = 0; i < x.size1(); ++i) {
+            for (std::size_t j = 0; j < x.size2(); ++j)
+                ret += x(i, j) * x(i, j);
+        }
+        ret *= lambda / 2.0;
+        for (std::size_t i = 0; i < theta.size1(); ++i) {
+            for (std::size_t j = 0; j < x.size1(); ++j) {
+                if (!present(i, j))
+                    continue;
+                double t = 0.0;
+                for (std::size_t k = 0; k < theta.size2(); ++k)
+                    t += theta(i, k) * x(j, k);
+                ret += (t - mtrx(i, j)) * (t - mtrx(i, j)) / 2.0;
+            }
+        }
 
         // Compute the gradient of theta and x.
         ublas::matrix<double> theta_grad(theta.size1(), theta.size2()),

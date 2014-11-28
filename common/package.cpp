@@ -9,7 +9,7 @@ void send(int fd, const void *buf, std::size_t len) {
 
 std::size_t recv(int fd, void *buf) {
     std::size_t len = 0;
-    ::recv(fd, &len, sizeof(len), 0);
+    assert(::recv(fd, &len, sizeof(len), 0) == sizeof(len));
     std::size_t ret = ::recv(fd, buf, len, MSG_WAITALL);
     assert(ret == len);
     return len;
