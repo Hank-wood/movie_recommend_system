@@ -1,2 +1,4 @@
 *.o
 rd
+client/a.out
+server/a.out
